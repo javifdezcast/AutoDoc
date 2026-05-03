@@ -1,0 +1,10 @@
+"""{{ description }}
+
+{%- if attributes %}
+
+Attributes:
+{%- for attr in attributes %}
+    {{ attr.name }} ({{ attr.type }}): {{ attr.description }}
+{%- endfor %}
+{%- endif %}
+"""

@@ -1,0 +1,27 @@
+"""{{ description }}
+
+{%- if args %}
+
+Args:
+{%- for arg in args %}
+    {{ arg.name }} ({{ arg.type }}): {{ arg.description }}
+{%- endfor %}
+{%- endif %}
+{%- if returns %}
+
+Returns:
+    {{ returns.type }}: {{ returns.description }}
+{%- endif %}
+{%- if raises %}
+
+Raises:
+{%- for exc in raises %}
+    {{ exc.name }}: {{ exc.description }}
+{%- endfor %}
+{%- endif %}
+{%- if example %}
+
+Example:
+    {{ example }}
+{%- endif %}
+"""
