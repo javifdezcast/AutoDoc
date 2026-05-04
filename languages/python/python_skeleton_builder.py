@@ -18,7 +18,7 @@ Template objects.
 from typing import override
 
 from tree_sitter import Node
-from skeleton_builder import SkeletonBuilder
+from builders.skeleton_builder import SkeletonBuilder
 
 
 class PythonSkeletonBuilder (SkeletonBuilder):

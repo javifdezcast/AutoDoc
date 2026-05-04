@@ -1,4 +1,4 @@
-from example_builder import ExampleBuilder
+from builders.example_builder import ExampleBuilder
 
 TEMPLATE_MAP = {
     "function_definition": "function",

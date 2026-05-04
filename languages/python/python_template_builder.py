@@ -1,4 +1,4 @@
-from template_builder import TemplateBuilder
+from builders.template_builder import TemplateBuilder
 
 TEMPLATE_MAP = {
     "function_definition": "function",
