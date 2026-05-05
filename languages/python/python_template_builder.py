@@ -9,6 +9,6 @@ TEMPLATE_MAP = {
 class PythonTemplateBuilder(TemplateBuilder):
     def __init__(self):
         super().__init__(
-            template_dir="languages/python",
+            template_dir="languages/python/templates",
             template_map=TEMPLATE_MAP,
         )

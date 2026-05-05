@@ -11,7 +11,7 @@ class TemplateBuilder:
         if element_type is None:
             raise ValueError(f"Unsupported node type: '{node.type}'")
 
-        template_path = f"{self.template_dir}/{element_type}.j2"
+        template_path = f"{self.template_dir}/{element_type}"
         with open(template_path, "r", encoding="utf-8") as f:
             source = f.read()
 

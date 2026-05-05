@@ -196,6 +196,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
         list of dict
             Each entry has 'name', 'type', and 'description' keys.
         """
+        IMPLICIT_PARAMS = {"self", "cls"}
         params: list[dict] = []
         if params_node is not None:
 
@@ -204,7 +205,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
             for i, param in enumerate(params_node.named_children):
 
                 # Skip 'self' / 'cls'
-                if skip_first and i == 0:
+                if param.type == "identifier" and param.text.decode() in {"self", "cls"}:
                     continue
 
                 # *args / **kwargs — store the splat name without the stars

@@ -10,7 +10,7 @@ class ExampleBuilder:
         if element_type is None:
             raise ValueError(f"Unsupported node type: '{node.type}'")
 
-        example_path = f"{self.example_dir}/{element_type}.j2"
+        example_path = f"{self.example_dir}/{element_type}"
         with open(example_path, "r", encoding="utf-8") as f:
             source = f.read()
 

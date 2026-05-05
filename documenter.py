@@ -1,6 +1,5 @@
 import json
 import requests
-import tree_sitter
 from tree_sitter import Node
 from pathlib import Path
 from factories.factory import Factory
@@ -8,7 +7,7 @@ from factories.factory import Factory
 
 class FileDocumenter:
     URL = "http://localhost:11434"
-    DOCUMENTABLE_ELEMENTS: list[str] = []
+    DOCUMENTABLE_ELEMENTS: list[str] = ['class_definition', 'module', 'function_definition']
 
     def __init__(self, language: str, model_name: str):
         self.language = language
@@ -21,7 +20,6 @@ class FileDocumenter:
 
     def document_file(self, path: Path) -> None:
         source = path.read_bytes()
-        tree_sitter.Parser().parse(source)
         tree = self.parser.parse(source)
         stripped_file = self._strip_docstrings(source, tree)
         self._collected_docs = []
@@ -37,9 +35,7 @@ class FileDocumenter:
         for child in node.named_children:       # skip anonymous tokens
             self._document(child)
         if node.type in self.DOCUMENTABLE_ELEMENTS:
-            already_documented = self._has_docstring(node)
-            if not already_documented:
-                self._generate_and_collect(node)
+            self._generate_and_collect(node)
 
     def _generate_and_collect(self, node: Node) -> None:
         template = self.template_builder.build_template(node)
@@ -50,13 +46,6 @@ class FileDocumenter:
         filled   = json.loads(response)
         docstring = template.render(filled)
         self._collected_docs.append((node.start_byte, docstring))
-
-    def _has_docstring(self, node: Node) -> bool:
-        """
-        Check whether the node already has a leading doc comment.
-        Implementation depends on language; override in subclasses.
-        """
-        raise NotImplementedError
 
     # ------------------------------------------------------------------
     # Source insertion — done in reverse order to preserve byte offsets

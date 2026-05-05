@@ -9,6 +9,6 @@ TEMPLATE_MAP = {
 class PythonExampleBuilder(ExampleBuilder):
     def __init__(self):
         super().__init__(
-            example_dir="languages/python",
+            example_dir="languages/python/examples",
             example_map=TEMPLATE_MAP,
         )
