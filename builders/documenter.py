@@ -2,8 +2,7 @@ import json
 from pathlib import Path
 
 import requests
-from tree_sitter import Node, Parser, Language, Query, QueryCursor
-from tree_sitter_language_pack import get_language
+from tree_sitter import Node, Parser, Query, QueryCursor
 
 from builders.example_builder import ExampleBuilder
 from builders.skeleton_builder import SkeletonBuilder
@@ -29,13 +28,14 @@ class Documenter:
         source = path.read_bytes()
         tree = self.parser.parse(source)
         stripped_file = self._strip_docstrings(source, tree.root_node)
-        with open('results/' + path.name, "wb") as f:
+        with open('results/stripped_' + path.name , "wb") as f:
             f.write(stripped_file)
         tree = self.parser.parse(stripped_file)
         self._collected_docs = []
         self._document(tree.root_node)
         output = self._insert_docs(source)
-        path.write_bytes(output)
+        with open('results/' + path.name , "wb") as f:
+            f.write(output)
 
     def _strip_docstrings(self, file: bytes, node: Node):
         docstrings = self._collect_docstrings(node)

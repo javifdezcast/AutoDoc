@@ -6,7 +6,9 @@ TEMPLATE_MAP = {
     "module": "module",
 }
 
+
 class PythonExampleBuilder(ExampleBuilder):
+
     def __init__(self):
         super().__init__(
             example_dir="languages/python/examples",

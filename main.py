@@ -1,11 +1,7 @@
 # This is a sample Python script.
 import json
 from pathlib import Path
-
-from pip._internal.resolution.resolvelib import factory
-
-from factory import Factory, FactoryFactory
-from languages.python.python_documenter import PythonDocumenter
+from factory_factory import  FactoryFactory
 from git import Git
 
 
@@ -13,7 +9,7 @@ def main():
     config = json.load(open('config.json'))
     files_to_document = Git.find_different_files()
     factory = FactoryFactory.getFactory(config['language'])
-    documenter = factory.getDocumenter(config['model'])
+    documenter = factory.get_documenter(config['model'])
     for file in files_to_document:
         documenter.document_file(Path(file))
 

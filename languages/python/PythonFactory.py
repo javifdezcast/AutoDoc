@@ -1,36 +1,43 @@
+from typing import override
 from xml.dom.minidom import Document
-
+from tree_sitter import Parser, Language
+from tree_sitter_language_pack import get_parser as ts_get_parser, get_language
 from builders.skeleton_builder import SkeletonBuilder
 from builders.template_builder import TemplateBuilder
 from builders.example_builder import ExampleBuilder
-from factory import Factory
+from abstract_factory import AbstractFactory
 from languages.python.python_documenter import PythonDocumenter
 from languages.python.python_example_builder import PythonExampleBuilder
 from languages.python.python_skeleton_builder import PythonSkeletonBuilder
 from languages.python.python_template_builder import PythonTemplateBuilder
-from languages.__init__ import python
-from tree_sitter import Parser
-from tree_sitter_language_pack import get_parser as ts_get_parser
 
 
-class PythonFactory(Factory):
+class PythonFactory(AbstractFactory):
+    
+    def __init__(self):
+        self._language = get_language("python")
 
-    @classmethod
-    def get_example_builder(cls) -> ExampleBuilder:
+    def get_language(self) -> Language:
+        return self._language
+
+    @override
+    def get_parser(self) -> Parser:
+        parser = Parser()
+        parser.language = self.get_language()  # bind to the same Language
+        return parser
+
+    @override
+    def get_documenter(self, model_name: str) -> Document:
+        return PythonDocumenter(self, model_name)
+
+    @override
+    def get_example_builder(self) -> ExampleBuilder:
         return PythonExampleBuilder()
 
-    @classmethod
-    def get_skeleton_builder(cls) -> SkeletonBuilder:
+    @override
+    def get_skeleton_builder(self) -> SkeletonBuilder:
         return PythonSkeletonBuilder()
 
-    @classmethod
-    def get_template_builder(cls) -> TemplateBuilder:
+    @override
+    def get_template_builder(self) -> TemplateBuilder:
         return PythonTemplateBuilder()
-
-    @classmethod
-    def get_parser(cls) -> Parser:
-        return ts_get_parser(python)
-
-    @classmethod
-    def getDocumenter(cls, model_name: str) -> Document:
-        return PythonDocumenter(model_name)
