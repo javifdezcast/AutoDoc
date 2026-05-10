@@ -10,16 +10,16 @@ Functional code has the following structure:
     - Module
         + Variables
         + Functions
+
 We must then define the skeletons for each of the elements that we want
 to document.
+
 This module accesses the files containing the skeletons and returns them as
 Template objects.
 """
 from typing import override
-
 from tree_sitter import Node
 from builders.skeleton_builder import SkeletonBuilder
-
 
 class PythonSkeletonBuilder (SkeletonBuilder):
 
@@ -169,7 +169,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
             "type":        return_type_node.text.decode() if return_type_node else "<placeholder>",
             "description": "<placeholder>",
         }
-
+        skeleton["example"] = "<placeholder>"
         return skeleton
 
     # ------------------------------------------------------------------ #
