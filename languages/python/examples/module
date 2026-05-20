@@ -1,15 +1,35 @@
-"""{{ description }}
+"""Basic arithmetic operations.
 
-{%- if attributes %}
+This module provides simple functions for performing arithmetic
+operations on numeric values. It is intended as a teaching example.
+
+Typical usage example:
+
+    from calculator import add
+    result = add(2, 3)
+"""
+
+def add(a, b):
+    return a + b
+
+def subtract(a, b):
+    return a - b
+
+
+"""Greeting utilities for different languages.
+
+Provides functions that return greeting strings in English and
+Spanish. All functions return plain strings without side effects.
 
 Attributes:
-{%- for attr in attributes %}
-    {{ attr.name }} ({{ attr.type }}): {{ attr.description }}
-{%- endfor %}
-{%- endif %}
-{%- if example %}
-
-Example:
-    {{ example }}
-{%- endif %}
+    DEFAULT_LANGUAGE (str): The fallback language used when no
+        language is specified.
 """
+
+DEFAULT_LANGUAGE = "en"
+
+def hello_en(name):
+    return f"Hello, {name}!"
+
+def hello_es(name):
+    return f"¡Hola, {name}!"

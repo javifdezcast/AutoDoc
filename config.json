@@ -1,4 +1,41 @@
 {
+  "project_name": "auto-doc",
+  "llm": {
+    "provider": "ollama",
+    "base_url": "http://127.0.0.1:11434",
+    "model": "qwen2.5-coder:7b",
+    "temperature": 0.3,
+    "num_parallel": 1,
+    "context_length": 4096,
+    "max_loaded_models": 1,
+    "keep_alive": "-1"
+  },
+  "docker": {
+    "image": "ollama/ollama:latest"
+  },
   "language": "python",
-  "model": "prueba"
+  "languages": {
+    "python": {
+      "extensions": [
+        ".py"
+      ],
+      "elements_to_document": [
+        "class_definition",
+        "module",
+        "function_definition"
+      ]
+    },
+    "typescript": {
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ],
+      "elements_to_document": [
+        "function_declaration",
+        "method_definition",
+        "class_declaration",
+        "interface_declaration"
+      ]
+    }
+  }
 }

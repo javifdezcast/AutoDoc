@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import requests
-from tree_sitter import Node, Parser, Query, QueryCursor
+from tree_sitter import Node, Parser, Query, QueryCursor, Language
 
 from builders.example_builder import ExampleBuilder
 from builders.skeleton_builder import SkeletonBuilder
@@ -13,30 +13,77 @@ class Documenter:
     URL = "http://localhost:11434"
     DOCUMENTABLE_ELEMENTS: list[str] = []
 
-    def __init__(self, model_name: str):
-        self.path = None
-        self.model_name = model_name
-        self.parser: Parser = None
-        self.template_builder: TemplateBuilder = None
-        self.skeleton_builder: SkeletonBuilder = None
-        self.example_builder: ExampleBuilder = None
-        self.docstring_queries: list[Query] = None
-        self._collected_docs = []
+    _language_name: str = None
+    _language: Language = None
+    _parser: Parser = None
+    _template_builder: TemplateBuilder = None
+    _skeleton_builder: SkeletonBuilder = None
+    _example_builder: ExampleBuilder = None
 
+    # Getters and setters
+    @property
+    def language(self):
+        raise AttributeError("language is not readable")
+
+    @language.setter
+    def language(self, value: Language) -> None:
+        self._language = value
+
+    @property
+    def parser(self):
+        raise AttributeError("parser is not readable")
+
+    @parser.setter
+    def parser(self, value: Parser) -> None:
+        self._parser = value
+
+    @property
+    def template_builder(self):
+        raise AttributeError("template_builder is not readable")
+
+    @template_builder.setter
+    def template_builder(self, value: TemplateBuilder) -> None:
+        self._template_builder = value
+
+    @property
+    def skeleton_builder(self):
+        raise AttributeError("skeleton_builder is not readable")
+
+    @skeleton_builder.setter
+    def skeleton_builder(self, value: SkeletonBuilder) -> None:
+        self._skeleton_builder = value
+
+    @property
+    def example_builder(self):
+        raise AttributeError("example_builder is not readable")
+
+    @example_builder.setter
+    def example_builder(self, value: ExampleBuilder) -> None:
+        self._example_builder = value
+
+    def create_docstring_queries(self):
+        pass
+
+    # Constructor
+    def __init__(self, model_name):
+        self.model_name = model_name
+        self._collected_docs = []
+        self.config = json.loads(Path("config.json").read_text())
+
+    # Public document file method
     def document_file(self, path: Path) -> None:
         self.path = path
         source = path.read_bytes()
-        tree = self.parser.parse(source)
+        tree = self._parser.parse(source)
         stripped_file = self._strip_docstrings(source, tree.root_node)
         with open('results/stripped_' + path.name , "wb") as f:
             f.write(stripped_file)
-        tree = self.parser.parse(stripped_file)
+        tree = self._parser.parse(stripped_file)
         self._collected_docs = []
         self._document(tree.root_node)
-        output = self._insert_docs(source)
-        with open('results/' + path.name , "wb") as f:
-            f.write(output)
+        self.docstring_queries: list[Query] = []
 
+    # Private documentation methods
     def _strip_docstrings(self, file: bytes, node: Node):
         docstrings = self._collect_docstrings(node)
         docstrings.sort(key=lambda n: n.start_byte, reverse=True)
@@ -47,7 +94,7 @@ class Documenter:
 
     def _collect_docstrings(self, n: Node) -> list[Node]:
         collected_docstrings = []
-        for query in self.docstring_queries:
+        for i, query in enumerate(self.docstring_queries):
             cursor = QueryCursor(query)
             captures = cursor.captures(n)
             for nodes in captures.values():
@@ -65,22 +112,15 @@ class Documenter:
         node_name = ''
         if node.child_by_field_name('name'):
             node_name = node.child_by_field_name('name').text.decode('utf-8')
-        template = self.template_builder.build_template(node)
-        skeleton = self.skeleton_builder.build_skeleton(node)
-        with open('results/' + self.path.name + node_name + '.skeleton.txt', "w") as f:
+        template = self._template_builder.build_template(node)
+        skeleton = self._skeleton_builder.build_skeleton(node)
+        with open('results/skeleton/' + self.path.name + node_name + '.skeleton.txt', "w") as f:
             f.write(json.dumps(skeleton))
-        example = self.example_builder.build_example(node)
-        with open('results/' + self.path.name + node_name + '.example.txt', "w") as f:
-            f.write(example)
+        example = self._example_builder.build_example(node)
         prompt = self._build_prompt(node, skeleton, example)
-        with open('results/' + self.path.name + node_name + '.prompt.txt', "w") as f:
-            f.write(prompt)
-        """
         response = self._query_model(prompt)
-        filled   = json.loads(response)
-        """
-        docstring = template.render(skeleton)
-        with open('results/' + self.path.name + node_name + '.docstring.txt', "w") as f:
+        docstring = template.render(json.loads(response))
+        with open('results/docs/' + self.path.name + node_name + '.docstring.txt', "w") as f:
             f.write(docstring)
         self._collected_docs.append((node.start_byte, docstring))
 
@@ -97,10 +137,15 @@ class Documenter:
 
     def _query_model(self, prompt: str) -> str:
         resp = requests.post(
-            self.URL.rstrip("/") + "/api/generate",
-            json={"model": self.model_name, "prompt": prompt, "stream": False,
-                  "options": {"temperature": 0.3}},
-            timeout=120,
+            self.config['llm']['base_url'].rstrip("/") + "/api/generate",
+            json={
+                "model": self.config['llm']['model'],
+                "prompt": prompt,
+                "think": False,
+                "stream": False,
+                "format": "json",
+                "options": {"temperature": self.config['llm']['temperature']}},
+            timeout=600,
         )
         resp.raise_for_status()
         return resp.json()["response"]
@@ -108,21 +153,24 @@ class Documenter:
     def _build_prompt(self, node: Node, skeleton: dict, example: str) -> str:
         return (
             f"You are an expert software engineer writing API documentation (docstrings) "
-            f"for {self.language} code.\n\n"
+            f"for {self._language.name} code.\n\n"
             f"Your task is to complete the provided dictionary skeleton by replacing each "
             f"'<placeholder>' with an accurate, concise description based solely on the "
             f"code snippet provided.\n\n"
             f"# Rules:\n"
-            f"- Only document what is explicitly present in the code.\n"
-            f"- For 'raises' or 'exceptions': only include exceptions that propagate to the "
-            f"caller. Do NOT include exceptions that are caught and handled within the code.\n"
-            f"- If a property has no corresponding content in the code (e.g., no parameters, "
-            f"no return value), set its value to null.\n"
-            f"- Output ONLY the completed dictionary. No explanations, no markdown fences, "
-            f"no extra text.\n\n"
+            f"- # Rules"
+            f"1. ALWAYS write a description for the function itself, every parameter, "
+            f"   and the return value if one exists. These fields must NEVER be null "
+            f"   when the code contains them.\n"
+            f"2. Use null ONLY for these specific cases:\n"
+            f"   - 'returns' is null if the function has no return statement or returns None implicitly\n"
+            f"   - 'example' is null if no usage example is obvious from the code\n"
+            f"   - A 'raises' entry is null only if no exception propagates to the caller\n"
+            f"3. Base descriptions strictly on the code — do not invent behavior.\n"
+            f"4. Output ONLY the completed dictionary as valid JSON. No prose, no fences.\n"
             f"# Examples:\n{example}\n\n"
             f"# Code to document:\n"
-            f"```{self.language}\n{node.text.decode("utf-8")}\n```\n\n"
+            f"```{self._language.name}\n{node.text.decode("utf-8")}\n```\n\n"
             f"# Dictionary skeleton to complete:\n"
             f"{skeleton}"
         )

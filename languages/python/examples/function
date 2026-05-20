@@ -1,27 +1,34 @@
-"""{{ description }}
+def divide(numerator, denominator):
+    """Divides two numbers and returns the result.
 
-{%- if args %}
+    Args:
+        numerator (float): The number to be divided.
+        denominator (float): The number to divide by. Must be non-zero.
 
-Args:
-{%- for arg in args %}
-    {{ arg.name }} ({{ arg.type }}): {{ arg.description }}
-{%- endfor %}
-{%- endif %}
-{%- if returns %}
+    Returns:
+        float: The result of the division.
 
-Returns:
-    {{ returns.type }}: {{ returns.description }}
-{%- endif %}
-{%- if raises %}
+    Raises:
+        ZeroDivisionError: If `denominator` is zero.
+    """
+    return numerator / denominator
 
-Raises:
-{%- for exc in raises %}
-    {{ exc.name }}: {{ exc.description }}
-{%- endfor %}
-{%- endif %}
-{%- if example %}
+def find_max(numbers):
+    """Finds the largest value in a list of numbers.
 
-Example:
-    {{ example }}
-{%- endif %}
-"""
+    Args:
+        numbers (list[float]): A non-empty list of numeric values.
+
+    Returns:
+        float: The largest value found in the list.
+
+    Raises:
+        ValueError: If `numbers` is empty.
+
+    Example:
+        >>> find_max([1, 5, 3])
+        5
+    """
+    if not numbers:
+        raise ValueError("The list must not be empty.")
+    return max(numbers)

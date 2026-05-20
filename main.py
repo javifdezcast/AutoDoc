@@ -1,22 +1,16 @@
 # This is a sample Python script.
 import json
 from pathlib import Path
-from factory_factory import  FactoryFactory
+from factory import Factory
 from git import Git
 
 
 def main():
     config = json.load(open('config.json'))
     files_to_document = Git.find_different_files()
-    factory = FactoryFactory.getFactory(config['language'])
-    documenter = factory.get_documenter(config['model'])
+    documenter = Factory.get_documenter(config['language'], config['llm']['model'])
     for file in files_to_document:
         documenter.document_file(Path(file))
-
-
-
-
-
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':

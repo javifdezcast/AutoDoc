@@ -1,27 +1,22 @@
+from tree_sitter import Parser
 from tree_sitter_language_pack import get_language
-
 from builders.documenter import Documenter
+from languages import languages
 
-from languages.python.PythonFactory import python_objects
+class Factory:
 
-
-
-
-class AbstractFactory:
-
-    _language_objects = {
-        'python': python_objects
-    }
-
-    def __init__(self, language: str):
-        self._language_name = language
-
-
-    def get_documenter(self, language, model_name: str) -> Documenter:
-        documenter: Documenter = self._language_objects[self._language_name]['documenter'](model_name)
-        documenter.language(get_language(language))
-        documenter.set_parser(self._language_objects[self._language_name]['parser']())
-        documenter.set_templ(self._language_objects[self._language_name]['template_builder']())
-        documenter.set_language(self._language_objects[self._language_name]['skeleton_builder']())
-        documenter.set_language(self._language_objects[self._language_name]['example_builder']())
+    @classmethod
+    def get_documenter(cls, language_name: str, model_name: str) -> Documenter:
+        try:
+            classes = languages[language_name]['classes']
+            language = get_language(language_name)
+            documenter: Documenter = classes['documenter'](model_name)
+            documenter.language = language
+            documenter.parser = Parser(language)
+            documenter.template_builder = classes['template_builder']()
+            documenter.skeleton_builder = classes['skeleton_builder']()
+            documenter.example_builder = classes['example_builder']()
+            documenter.create_docstring_queries()
+        except KeyError as e:
+            raise Exception(f'Language {language_name} not supported')
         return documenter

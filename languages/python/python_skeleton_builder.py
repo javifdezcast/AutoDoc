@@ -127,7 +127,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
                             field_nodes.append(assignment)
 
                 if field_nodes:
-                    self._add_attribute_elements(field_nodes, skeleton, key="fields")
+                    self._add_attribute_elements(field_nodes, skeleton, key="attributes")
 
             return skeleton
 
@@ -162,13 +162,14 @@ class PythonSkeletonBuilder (SkeletonBuilder):
             # ── parameters ───────────────────────────────────────────────────
             params = self._extract_parameters(params_node, "function")
             if params:
-                skeleton["parameters"] = params
+                skeleton["args"] = params
 
             # ── return type ──────────────────────────────────────────────────
-            skeleton["returns"] = {
-                "type":        return_type_node.text.decode() if return_type_node else "<placeholder>",
-                "description": "<placeholder>",
-            }
+            if return_type_node is not None and return_type_node.text != b'None':
+                skeleton["returns"] = {
+                    "type":        return_type_node.text.decode() if return_type_node else "<placeholder>",
+                    "description": "<placeholder>",
+                }
             skeleton["example"] = "<placeholder>"
             return skeleton
 

@@ -1,0 +1,32 @@
+class Point:
+    """Represents a point in 2D space.
+
+    Attributes:
+        x (float): The horizontal coordinate.
+        y (float): The vertical coordinate.
+    """
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+class Counter:
+    """A simple counter that can be incremented and reset.
+
+    The counter starts at zero by default and increases by one
+    each time `increment` is called.
+
+    Attributes:
+        count (int): The current value of the counter.
+        name (str): A human-readable label for the counter.
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.count = 0
+
+    def increment(self):
+        self.count += 1
+
+    def reset(self):
+        self.count = 0

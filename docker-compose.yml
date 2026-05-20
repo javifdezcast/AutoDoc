@@ -1,0 +1,90 @@
+
+# Docker Compose stack for running Ollama as the LLM backend for doc-gen.
+#
+# All tunable values come from the .env file in this directory, which is
+# generated from config.json by scripts/sync_compose_env.py. Do not edit
+# the .env file by hand — re-run the sync script instead.
+#
+# Prerequisites on the host:
+#   - Docker Engine + Docker Compose plugin
+#   - NVIDIA driver
+#   - NVIDIA Container Toolkit (`sudo apt-get install nvidia-container-toolkit`,
+#     then `sudo nvidia-ctk runtime configure --runtime=docker`, then restart docker)
+#
+# Usage:
+#   python scripts/sync_compose_env.py    # generate .env from config.json
+#   docker compose up -d                  # start Ollama
+#   docker compose --profile init up      # one-shot: start Ollama and pre-pull the model
+#   docker compose logs -f ollama         # tail logs
+#   docker compose exec ollama ollama ps  # see loaded models
+#   docker compose down                   # stop (model files persist in named volume)
+#   docker compose down -v                # stop and delete model files
+#
+# The Python tool on the host reaches the API at ${OLLAMA_BIND_ADDR}:${OLLAMA_PORT}
+# (default http://127.0.0.1:11434).
+
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-doc-gen}-ollama
+    restart: unless-stopped
+    ports:
+      # Bind to loopback by default — the Ollama API has no authentication,
+      # so we don't want it reachable from the network unless explicitly opted
+      # into. Override OLLAMA_BIND_ADDR in config.json to expose it.
+      - "${OLLAMA_BIND_ADDR:-127.0.0.1}:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      # Named volume keeps the model download between restarts.
+      - ollama_models:/root/.ollama
+    environment:
+      # Keep the model resident in VRAM/RAM. Default "-1" means never unload,
+      # so the first call after idle doesn't pay the full reload cost.
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:--1}
+      # Number of concurrent requests Ollama will serve. Keep at 1 on modest
+      # hardware to avoid thrashing.
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      # Default context window. Larger windows eat more memory.
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-8192}
+      # Maximum number of models that can be loaded simultaneously.
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # One-shot init service: pulls the configured model and exits. Runs only
+  # when invoked with `docker compose --profile init up`. Useful for first-
+  # time setup and in CI to ensure the model is present before generation.
+  ollama-init:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-doc-gen}-ollama-init
+    profiles: ["init"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Pulling ${OLLAMA_MODEL}..."
+        ollama pull "${OLLAMA_MODEL}"
+        echo "Done. Models available:"
+        ollama list
+
+volumes:
+  ollama_models:
+    name: ${COMPOSE_PROJECT_NAME:-doc-gen}-ollama-models
+

@@ -1,7 +1,10 @@
-from tree_sitter import Query
-from tree_sitter_language_pack import get_language
+from tree_sitter import Query, Language
+from tree_sitter_language_pack._native import Parser
+
 from builders.documenter import Documenter
-from factory_factory import AbstractFactory
+from builders.example_builder import ExampleBuilder
+from builders.skeleton_builder import SkeletonBuilder
+from builders.template_builder import TemplateBuilder
 
 
 class PythonDocumenter(Documenter):
@@ -11,37 +14,37 @@ class PythonDocumenter(Documenter):
     MODULE_DOCSTRING_QUERY = """
     (module
       .
-      (expression_statement
-        (string) @module.docstring))
+      [
+        (expression_statement (string) @module.docstring)
+        (string) @module.docstring
+      ])
     """
+
     CLASS_DOCSTRING_QUERY = """
     (class_definition
       body: (block
         .
-        (expression_statement
-          (string) @class.docstring)))
+        [
+          (expression_statement (string) @class.docstring)
+          (string) @class.docstring
+        ]))
     """
+
     FUNCTION_DOCSTRING_QUERY = """
     (function_definition
       body: (block
         .
-        (expression_statement
-          (string) @function.docstring)))
+        [
+          (expression_statement (string) @function.docstring)
+          (string) @function.docstring
+        ]))
     """
 
-    def __init__(self,factory: AbstractFactory, model_name: str):
+    def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.path = None
-        self.language = factory.get_language()
-        self.model_name = model_name
-        self.parser = factory.get_parser()
-        self.template_builder = factory.get_template_builder()
-        self.skeleton_builder = factory.get_skeleton_builder()
-        self.example_builder = factory.get_example_builder()
-        self.create_docstring_queries()
 
     def create_docstring_queries(self):
         self.docstring_queries = []
-        self.docstring_queries.append(Query(self.language, self.MODULE_DOCSTRING_QUERY))
-        self.docstring_queries.append(Query(self.language, self.FUNCTION_DOCSTRING_QUERY))
-        self.docstring_queries.append(Query(self.language, self.CLASS_DOCSTRING_QUERY))
+        self.docstring_queries.append(Query(self._language, self.MODULE_DOCSTRING_QUERY))
+        self.docstring_queries.append(Query(self._language, self.FUNCTION_DOCSTRING_QUERY))
+        self.docstring_queries.append(Query(self._language, self.CLASS_DOCSTRING_QUERY))
