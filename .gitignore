@@ -29,3 +29,10 @@ replay_pid*
 
 # results folder for tests
 /results
+
+# generated .env file
+.env
+
+# precompiled files
+
+__pycache__/*
