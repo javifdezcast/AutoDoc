@@ -13,7 +13,6 @@ class Documenter:
     URL = "http://localhost:11434"
     DOCUMENTABLE_ELEMENTS: list[str] = []
 
-    _language_name: str = None
     _language: Language = None
     _parser: Parser = None
     _template_builder: TemplateBuilder = None

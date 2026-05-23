@@ -7,5 +7,5 @@ class Git:
     @classmethod
     def find_different_files(cls):
         return [
-            'languages/python/python_skeleton_builder.py',
+            'languages/python/typescript_skeleton_builder.py',
         ]

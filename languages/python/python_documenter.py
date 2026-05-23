@@ -1,14 +1,7 @@
-from tree_sitter import Query, Language
-from tree_sitter_language_pack._native import Parser
-
+from tree_sitter import Query
 from builders.documenter import Documenter
-from builders.example_builder import ExampleBuilder
-from builders.skeleton_builder import SkeletonBuilder
-from builders.template_builder import TemplateBuilder
-
 
 class PythonDocumenter(Documenter):
-    LANGUAGE_NAME = 'python'
     DOCUMENTABLE_ELEMENTS: list[str] = ['class_definition', 'module', 'function_definition']
 
     MODULE_DOCSTRING_QUERY = """
