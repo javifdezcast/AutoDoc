@@ -18,6 +18,7 @@ class Documenter:
     _template_builder: TemplateBuilder = None
     _skeleton_builder: SkeletonBuilder = None
     _example_builder: ExampleBuilder = None
+    _insertion: str = None
 
     # Getters and setters
     @property
@@ -60,6 +61,14 @@ class Documenter:
     def example_builder(self, value: ExampleBuilder) -> None:
         self._example_builder = value
 
+    @property
+    def insertion(self):
+        raise AttributeError("insertion is not readable")
+
+    @insertion.setter
+    def insertion(self, value: str) -> None:
+        self._insertion = value
+
     def create_docstring_queries(self):
         pass
 
@@ -79,11 +88,13 @@ class Documenter:
             f.write(stripped_file)
         tree = self._parser.parse(stripped_file)
         self._collected_docs = []
-        self._document(tree.root_node)
-        self.docstring_queries: list[Query] = []
+        self._document(tree.root_node, stripped_file)
+        documented_file = self._insert_docs(stripped_file)
+        with open('results/documented_' + path.name , "wb") as f:
+            f.write(documented_file)
 
     # Private documentation methods
-    def _strip_docstrings(self, file: bytes, node: Node):
+    def _strip_docstrings(self, file: bytes, node: Node)-> bytes:
         docstrings = self._collect_docstrings(node)
         docstrings.sort(key=lambda n: n.start_byte, reverse=True)
         result = bytearray(file)
@@ -100,38 +111,72 @@ class Documenter:
                 collected_docstrings.extend(nodes)
         return collected_docstrings
 
-    def _document(self, node: Node) -> None:
+    def _document(self, node: Node, file: bytes) -> None:
         """Recurse into named children first, then document the current node."""
         for child in node.named_children:  # skip anonymous tokens
-            self._document(child)
+            self._document(child, file)
         if node.type in self.DOCUMENTABLE_ELEMENTS:
-            self._generate_and_collect(node)
+            self._generate_and_collect(node, file)
 
-    def _generate_and_collect(self, node: Node) -> None:
+    def _generate_and_collect(self, node: Node, file: bytes) -> None:
         node_name = ''
         if node.child_by_field_name('name'):
             node_name = node.child_by_field_name('name').text.decode('utf-8')
+        insertion_point = self._find_insertion_point(node, self._insertion)
+        tabulation = self._find_indentation(insertion_point, self._insertion, file)
         template = self._template_builder.build_template(node)
         skeleton = self._skeleton_builder.build_skeleton(node)
-        with open('results/skeleton/' + self.path.name + node_name + '.skeleton.txt', "w") as f:
+        with open('results/skeleton/' + self.path.name + "_" + node_name + '.skeleton.txt', "w") as f:
             f.write(json.dumps(skeleton))
         example = self._example_builder.build_example(node)
         prompt = self._build_prompt(node, skeleton, example)
+        with open('results/prompts/' + self.path.name + "_" + node_name + '.docstring.txt', "w") as f:
+            f.write(prompt)
         response = self._query_model(prompt)
-        docstring = template.render(json.loads(response))
-        with open('results/docs/' + self.path.name + node_name + '.docstring.txt', "w") as f:
+        docstring = template.render(json.loads(response)) + "\n"
+        with open('results/docs/' + self.path.name + "_" + node_name + '.docstring.txt', "w") as f:
             f.write(docstring)
-        self._collected_docs.append((node.start_byte, docstring))
+        self._collected_docs.append((insertion_point, docstring, tabulation))
 
         # ------------------------------------------------------------------
         # Source insertion — done in reverse order to preserve byte offsets
         # ------------------------------------------------------------------
 
     def _insert_docs(self, source: bytes) -> bytes:
-        # Sort descending by position so earlier insertions don't shift offsets
-        for start_byte, docstring in sorted(self._collected_docs, reverse=True):
-            insertion = docstring.encode("utf-8")
-            source = source[:start_byte] + insertion + source[start_byte:]
+        """
+        Splice every collected docstring into `source` at its recorded position.
+
+        Insertions are applied in *descending* byte-offset order so that each
+        splice does not shift the offsets that still need to be processed.
+
+        For each entry the docstring is re-indented so that every line after the
+        first receives the stored indentation prefix.
+        """
+        for start_byte, docstring, indentation in sorted(
+                self._collected_docs, key=lambda t: t[0], reverse=True
+        ):
+            lines = docstring.splitlines()
+
+            if lines:
+                indented_doc = lines[0]
+
+                if len(lines) > 1:
+                    indented_doc += '\n' + '\n'.join(
+                        indentation + line if line.strip() else line
+                        for line in lines[1:]
+                    )
+            else:
+                indented_doc = ''
+
+            # Ensure the inserted block ends with an indented newline.
+            if not indented_doc.endswith('\n'):
+                indented_doc += '\n'
+
+            indented_doc = indented_doc[:-1] + '\n' + indentation
+
+            payload = indented_doc.encode('utf-8')
+            source = source[:start_byte] + payload + source[start_byte:]
+
         return source
 
     def _query_model(self, prompt: str) -> str:
@@ -152,12 +197,11 @@ class Documenter:
     def _build_prompt(self, node: Node, skeleton: dict, example: str) -> str:
         return (
             f"You are an expert software engineer writing API documentation (docstrings) "
-            f"for {self._language.name} code.\n\n"
+            f"for {self.config['language']} code.\n\n"
             f"Your task is to complete the provided dictionary skeleton by replacing each "
             f"'<placeholder>' with an accurate, concise description based solely on the "
             f"code snippet provided.\n\n"
             f"# Rules:\n"
-            f"- # Rules"
             f"1. ALWAYS write a description for the function itself, every parameter, "
             f"   and the return value if one exists. These fields must NEVER be null "
             f"   when the code contains them.\n"
@@ -169,7 +213,68 @@ class Documenter:
             f"4. Output ONLY the completed dictionary as valid JSON. No prose, no fences.\n"
             f"# Examples:\n{example}\n\n"
             f"# Code to document:\n"
-            f"```{self._language.name}\n{node.text.decode("utf-8")}\n```\n\n"
+            f"```{self.config['language']}\n{node.text.decode("utf-8")}\n```\n\n"
             f"# Dictionary skeleton to complete:\n"
             f"{skeleton}"
         )
+
+    def _find_insertion_point(self, node: Node, placement: str) -> int:
+        if placement == 'inside':
+            # Python-style: insertion goes as the first statement inside the body.
+            body = node.child_by_field_name('body')
+            if body is None:
+                # Fallback: some grammars expose the body differently; look for
+                # a 'block', 'statement_block', or similar child.
+                for child in node.children:
+                    if child.type in ('block', 'statement_block', 'class_body'):
+                        body = child
+                        break
+            if body is None or body.child_count == 0:
+                # Empty body (e.g. a stub with just `pass` missing): fall back
+                # to the node's own start so the caller can decide.
+                return node.start_byte
+            return body.children[0].start_byte
+
+        if placement == 'before':
+            # Walk backwards through preceding siblings while they are
+            # decorators/annotations attached to this declaration.
+            decorator_types = {
+                'decorator',  # Python, TypeScript
+                'annotation',  # Java
+                'marker_annotation',  # Java
+                'attribute',  # C#-like grammars
+            }
+            target = node
+            sibling = node.prev_sibling
+            while sibling is not None and sibling.type in decorator_types:
+                target = sibling
+                sibling = sibling.prev_sibling
+            return target.start_byte
+
+        raise ValueError(f"Unknown placement: {placement!r}")
+
+    def _find_indentation(self, start_byte: int, placement: str, source: bytes) -> str:
+        """Return the indentation (run of spaces/tabs) of the line the
+        insertion point lives on.
+
+        For 'before', start_byte sits at the declaration and the indentation
+        precedes it on the same line ("...\\n\\t\\t|public").
+        For 'inside', start_byte sits at the start of the body line and the
+        indentation follows it ("...def f():\\n|\\t\\t\\tstmt").
+        """
+        SPACE, TAB = 0x20, 0x09
+
+        i = start_byte - 1
+        indent = bytearray()
+        while i >= 0 and source[i] in (SPACE, TAB):
+            indent.append(source[i])
+            i -= 1
+        indent.reverse()
+        return bytes(indent).decode('utf-8')
+
+    def _indent_docstring(self, docstring: str, indentation: str, placement: str) -> str:
+        """Apply `indentation` to a freshly rendered (un-indented) docstring
+        according to the insertion strategy."""
+        body = docstring[:-1] if docstring.endswith('\n') else docstring
+        tail = '\n' if docstring.endswith('\n') else ''
+        return indentation + body.replace('\n', '\n' + indentation) + tail
