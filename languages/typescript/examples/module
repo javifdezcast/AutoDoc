@@ -1,0 +1,55 @@
+Example 1:
+
+/**
+ * Centralised runtime configuration loaded from environment variables. Values are read once at import time and frozen; consumers should import the named exports rather than mutate them.
+ *
+ * @remarks
+ * Module-level variables:
+ * - `API_BASE_URL` (`string`): Root URL of the upstream API service.
+ * - `REQUEST_TIMEOUT_MS` (`number`): Default timeout applied to outbound HTTP calls, in milliseconds.
+ * - `FEATURE_FLAGS` (`ReadonlyMap<string, boolean>`): Map of feature-flag names to their resolved enabled/disabled state.
+ *
+ * @packageDocumentation
+ */
+
+// File: src/config.ts
+//
+// Module-level documentation generated for the whole file (program node).
+
+export const API_BASE_URL: string =
+  process.env.API_BASE_URL ?? 'https://api.example.com';
+
+export const REQUEST_TIMEOUT_MS: number =
+  Number(process.env.REQUEST_TIMEOUT_MS ?? 5000);
+
+export const FEATURE_FLAGS: ReadonlyMap<string, boolean> = new Map(
+  Object.entries(JSON.parse(process.env.FEATURE_FLAGS ?? '{}'))
+    .map(([k, v]) => [k, Boolean(v)] as const),
+);
+
+Example 2:
+
+/**
+ * Pure mathematical helpers shared between the analytics and pricing modules. The exported constants are frozen and safe to use as reference values in arithmetic operations.
+ *
+ * @remarks
+ * Module-level variables:
+ * - `EPSILON` (`number`): Tolerance used for floating-point equality checks.
+ * - `TWO_PI` (`number`): Convenience constant equal to `2 * Math.PI`.
+ *
+ * @packageDocumentation
+ */
+
+// File: src/math-utils.ts
+
+export const EPSILON: number = 1e-9;
+export const TWO_PI: number = 2 * Math.PI;
+
+export function approxEqual(a: number, b: number): boolean {
+  return Math.abs(a - b) < EPSILON;
+}
+
+export function normaliseAngle(radians: number): number {
+  const mod = radians % TWO_PI;
+  return mod < 0 ? mod + TWO_PI : mod;
+}

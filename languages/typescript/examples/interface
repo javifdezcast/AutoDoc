@@ -1,0 +1,35 @@
+Example 1:
+
+/**
+ * Envelope returned by list endpoints that paginate results. `items` holds the current page; `nextCursor` is `null` when the final page has been reached.
+ *
+ * @remarks
+ * Properties:
+ * - `items` (`T[]`): The records on the current page.
+ * - `nextCursor` (`string | null`): Opaque cursor for the next page, or `null` if no more pages exist.
+ * - `total` (`number`): Total number of records across all pages.
+ */
+interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor: string | null;
+  total: number;
+}
+
+Example 2:
+
+/**
+ * Configuration object describing how a client should retry transient failures. Implementations of this contract are consumed by network and database adapters across the codebase.
+ *
+ * @remarks
+ * Properties:
+ * - `maxAttempts` (`number`): Maximum number of attempts, including the initial call.
+ * - `initialDelayMs` (`number`): Delay before the first retry, in milliseconds.
+ * - `backoff` (`'fixed' | 'linear' | 'exponential'`): Strategy used to scale the delay between successive retries.
+ * - `retryOn` (`(error: unknown) => boolean`): Predicate returning `true` when an error is considered transient.
+ */
+interface RetryPolicy {
+  maxAttempts: number;
+  initialDelayMs: number;
+  backoff: 'fixed' | 'linear' | 'exponential';
+  retryOn: (error: unknown) => boolean;
+}

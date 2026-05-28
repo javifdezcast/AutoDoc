@@ -1,0 +1,13 @@
+/**
+ * {{ description }}
+{%- if variables %}
+ *
+ * @remarks
+ * Module-level variables:
+{%- for var in variables %}
+ * - `{{ var.name }}` ({{ var.type }}): {{ var.description }}
+{%- endfor %}
+{%- endif %}
+ *
+ * @packageDocumentation
+ */

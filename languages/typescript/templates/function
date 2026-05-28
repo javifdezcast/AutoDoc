@@ -1,0 +1,20 @@
+/**
+ * {{ description }}
+{%- if args %}
+ *
+{%- for arg in args %}
+ * @param {{ arg.name }} - {{ arg.description }}
+{%- endfor %}
+{%- endif %}
+{%- if returns %}
+ *
+ * @returns {{ returns.description }}
+{%- endif %}
+{%- if example %}
+ *
+ * @example
+ * ```ts
+ * {{ example }}
+ * ```
+{%- endif %}
+ */

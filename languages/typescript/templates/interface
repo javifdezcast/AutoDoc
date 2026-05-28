@@ -1,0 +1,11 @@
+/**
+ * {{ description }}
+{%- if attributes %}
+ *
+ * @remarks
+ * Properties:
+{%- for attr in attributes %}
+ * - `{{ attr.name }}` ({{ attr.type }}): {{ attr.description }}
+{%- endfor %}
+{%- endif %}
+ */

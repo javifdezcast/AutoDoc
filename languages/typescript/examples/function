@@ -1,0 +1,51 @@
+Example 1:
+
+/**
+ * Creates a debounced wrapper around a function that delays its invocation until `waitMs` milliseconds have elapsed since the last call.
+ *
+ * @param fn - The function to debounce.
+ * @param waitMs - Delay in milliseconds before `fn` is invoked.
+ *
+ * @returns A wrapped function with the same signature as `fn`. Repeated calls within the wait window reset the timer.
+ *
+ * @example
+ * ```ts
+ * const log = debounce((s: string) => console.log(s), 300);
+ * ```
+ */
+function debounce<TArgs extends unknown[]>(
+  fn: (...args: TArgs) => void,
+  waitMs: number,
+): (...args: TArgs) => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: TArgs) => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), waitMs);
+  };
+}
+
+Example 2:
+
+/**
+ * Splits an array into consecutive subarrays of at most `size` elements. The final chunk may be shorter if `items.length` is not a multiple of `size`.
+ *
+ * @param items - The source array to partition.
+ * @param size - Maximum length of each chunk; must be a positive integer.
+ *
+ * @returns An array of chunks preserving the original element order.
+ *
+ * @example
+ * ```ts
+ * chunk([1, 2, 3, 4, 5], 2); // [[1, 2], [3, 4], [5]]
+ * ```
+ */
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  if (size <= 0 || !Number.isInteger(size)) {
+    throw new RangeError("size must be a positive integer");
+  }
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}

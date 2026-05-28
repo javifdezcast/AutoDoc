@@ -1,0 +1,72 @@
+Example 1:
+
+/**
+ * Token-bucket rate limiter that throttles operations to a configurable rate. Tokens regenerate at `refillPerSecond` up to `capacity`; callers await `acquire` to consume one token before proceeding.
+ *
+ * @remarks
+ * Public fields:
+ * - `capacity` (`number`): Maximum number of tokens the bucket can hold.
+ * - `refillPerSecond` (`number`): Rate, in tokens per second, at which the bucket refills.
+ */
+class RateLimiter {
+  public capacity: number;
+  public refillPerSecond: number;
+  private tokens: number;
+  private lastRefill: number;
+
+  constructor(capacity: number, refillPerSecond: number) {
+    this.capacity = capacity;
+    this.refillPerSecond = refillPerSecond;
+    this.tokens = capacity;
+    this.lastRefill = Date.now();
+  }
+
+  async acquire(): Promise<void> {
+    this.refill();
+    while (this.tokens < 1) {
+      await new Promise(r => setTimeout(r, 10));
+      this.refill();
+    }
+    this.tokens -= 1;
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsedSec = (now - this.lastRefill) / 1000;
+    this.tokens = Math.min(this.capacity, this.tokens + elapsedSec * this.refillPerSecond);
+    this.lastRefill = now;
+  }
+}
+
+Example 2:
+
+type Handler<P> = (payload: P) => void;
+
+/**
+ * Strongly-typed in-memory publish/subscribe bus. Subscribers register handlers per event name and receive every payload published under that name until they unsubscribe.
+ *
+ * @remarks
+ * Public fields:
+ * - `name` (`string`): Human-readable identifier used in diagnostic logs.
+ */
+class EventBus<Events extends Record<string, unknown>> {
+  public name: string;
+  private readonly handlers = new Map<keyof Events, Set<Handler<unknown>>>();
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  on<K extends keyof Events>(event: K, handler: Handler<Events[K]>): () => void {
+    const set = this.handlers.get(event) ?? new Set();
+    set.add(handler as Handler<unknown>);
+    this.handlers.set(event, set);
+    return () => set.delete(handler as Handler<unknown>);
+  }
+
+  emit<K extends keyof Events>(event: K, payload: Events[K]): void {
+    const set = this.handlers.get(event);
+    if (set === undefined) return;
+    for (const h of set) (h as Handler<Events[K]>)(payload);
+  }
+}
