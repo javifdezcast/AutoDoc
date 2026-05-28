@@ -21,6 +21,7 @@ class Factory:
             # Create documenters and set attributes
             documenter: Documenter = classes['documenter'](model_name)
             documenter.language = language
+            documenter.insertion = language_config['insertion']
             documenter.parser = Parser(language)
             documenter.skeleton_builder = classes['skeleton_builder']()
             documenter.template_builder = TemplateBuilder(template_dir, node_type)
