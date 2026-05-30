@@ -1,4 +1,5 @@
 import json
+from logging import config
 from pathlib import Path
 
 import requests
@@ -90,8 +91,31 @@ class Documenter:
         self._collected_docs = []
         self._document(tree.root_node, stripped_file)
         documented_file = self._insert_docs(stripped_file)
-        with open('results/documented_' + path.name , "wb") as f:
-            f.write(documented_file)
+        self._save_file(documented_file, path)
+
+    def _save_file(self, documented_file: bytes, path: Path):
+        if self.config['mode'] == 'clone':
+            documented_path = self._results_path(path, "documented")
+        else:
+            documented_path = path
+        documented_path.write_bytes(documented_file)
+
+    def _results_path(self, path: Path, prefix: str = "") -> Path:
+        """
+        Build a results path preserving the original repo structure.
+
+        Example:
+            root_dir = "/repo"
+            path = "/repo/pkg/file.py"
+
+            -> results/documented/pkg/file.py
+        """
+        relative_path = path.relative_to(Path(self.config['root_dir']))
+        output_path = Path("results") / prefix / relative_path
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        return output_path
 
     # Private documentation methods
     def _strip_docstrings(self, file: bytes, node: Node)-> bytes:

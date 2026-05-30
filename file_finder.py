@@ -14,7 +14,7 @@ class FileFinder:
         root = config['root_dir']
         langauge_files = cls.find_matching_files(root, languages[config['language']]['extensions'])
         files_to_document = langauge_files
-        if (config['mode'] == 'diff'):
+        if (config['scope'] == 'diff'):
             different_files = cls.find_changed_files(root)
             files_to_document = list(set(langauge_files) & set(different_files))
         return files_to_document

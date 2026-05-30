@@ -6,6 +6,9 @@ from languages.typescript.typescript_skeleton_builder import TypeScriptSkeletonB
 languages = {
     'python': {
         'name': 'python',
+        'extensions': [
+            '.py'
+        ],
         'classes': {
             'documenter' : PythonDocumenter,
             'skeleton_builder' : PythonSkeletonBuilder
@@ -21,6 +24,9 @@ languages = {
     },
     'typescript': {
         'name': 'typescript',
+        'extensions': [
+            '.ts'
+        ],
         'classes': {
             'documenter' : TypeScriptDocumenter,
             'skeleton_builder' : TypeScriptSkeletonBuilder
@@ -37,4 +43,3 @@ languages = {
         "insertion": "before"
     }
 }
-python = 'python'

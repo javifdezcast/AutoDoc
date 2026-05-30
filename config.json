@@ -14,6 +14,9 @@
     "image": "ollama/ollama:latest"
   },
   "language": "python",
+  "root_dir": "/home/javi/Projects/python/fastapi-realworld-example-app",
+  "scope": "all",
+  "mode": "clone",
   "languages": {
     "python": {
       "extensions": [
@@ -27,10 +30,10 @@
     },
     "typescript": {
       "extensions": [
-        ".ts",
-        ".tsx"
+        ".ts"
       ],
       "elements_to_document": [
+        "program",
         "function_declaration",
         "method_definition",
         "class_declaration",
