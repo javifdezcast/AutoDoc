@@ -1,100 +1,83 @@
+import datetime
 import json
-from logging import config
 from pathlib import Path
-
 import requests
+from jinja2 import Template
 from tree_sitter import Node, Parser, Query, QueryCursor, Language
+from tree_sitter_language_pack import get_language
 
-from builders.example_builder import ExampleBuilder
-from builders.skeleton_builder import SkeletonBuilder
-from builders.template_builder import TemplateBuilder
+from builders import Builder
+from builders import Skeletoniser
+from languages import languages, LanguageConfig
 
 
 class Documenter:
-    URL = "http://localhost:11434"
-    DOCUMENTABLE_ELEMENTS: list[str] = []
 
     _language: Language = None
+    _language_config: LanguageConfig = None
     _parser: Parser = None
-    _template_builder: TemplateBuilder = None
-    _skeleton_builder: SkeletonBuilder = None
-    _example_builder: ExampleBuilder = None
-    _insertion: str = None
+    _builder: Builder = None
+    _skeletoniser: Skeletoniser = None
+    _docstring_queries: Query = None
+    _template_dir: str
+    _example_dir: str
+    _node_types: dict[str, str]
+    _mode: str
+    _root_dir: Path
+    _url: str
+    _model: str
+    _temperature: float
 
-    # Getters and setters
-    @property
-    def language(self):
-        raise AttributeError("language is not readable")
 
-    @language.setter
-    def language(self, value: Language) -> None:
-        self._language = value
+    def __init__(self, general_config: dict):
+        try:
+            self._collected_docs = []
+            self._builder = Builder()
+            self._set_general_config_attributes(general_config)
+            self._parser = Parser(self._language)
+            self._set_language_config_attributes()
+            self._set_mixed_config_attributes(general_config, languages[self._language_name])
+        except KeyError:
+            raise Exception(f'Language not supported')
 
-    @property
-    def parser(self):
-        raise AttributeError("parser is not readable")
+    def _set_general_config_attributes(self, config: dict):
+        self._language_name = config['language']
+        self._language = get_language(self._language_name)
+        self._url = config['llm']['base_url']
+        self._model = config['llm']['model']
+        self._temperature = config['llm']['temperature']
+        self._mode = config['mode']
+        self._root_dir = config['root_dir']
 
-    @parser.setter
-    def parser(self, value: Parser) -> None:
-        self._parser = value
 
-    @property
-    def template_builder(self):
-        raise AttributeError("template_builder is not readable")
+    def _set_language_config_attributes(self):
+        language_config = languages[self._language_name]
+        self._template_dir = language_config.template_directory
+        self._example_dir = language_config.example_directory
+        self._insertion = language_config.insertion
+        self._skeletoniser = language_config.skeletoniser
+        self.docstring_queries = [Query(self._language, query) for query in language_config.queries]
 
-    @template_builder.setter
-    def template_builder(self, value: TemplateBuilder) -> None:
-        self._template_builder = value
+    def _set_mixed_config_attributes(self, general_config: dict, language_config: LanguageConfig):
+        user_defined_node_types = general_config['elements_to_document']
+        self._node_types = {k:v for k,v in language_config.node_types.items() if k in user_defined_node_types}
 
-    @property
-    def skeleton_builder(self):
-        raise AttributeError("skeleton_builder is not readable")
 
-    @skeleton_builder.setter
-    def skeleton_builder(self, value: SkeletonBuilder) -> None:
-        self._skeleton_builder = value
-
-    @property
-    def example_builder(self):
-        raise AttributeError("example_builder is not readable")
-
-    @example_builder.setter
-    def example_builder(self, value: ExampleBuilder) -> None:
-        self._example_builder = value
-
-    @property
-    def insertion(self):
-        raise AttributeError("insertion is not readable")
-
-    @insertion.setter
-    def insertion(self, value: str) -> None:
-        self._insertion = value
-
-    def create_docstring_queries(self):
-        pass
-
-    # Constructor
-    def __init__(self, model_name):
-        self.model_name = model_name
-        self._collected_docs = []
-        self.config = json.loads(Path("config.json").read_text())
-
-    # Public document file method
-    def document_file(self, path: Path) -> None:
+    def document_file(self, number, path: Path) -> None:
+        self.file = number
+        self.element_count = 0
         self.path = path
         source = path.read_bytes()
         tree = self._parser.parse(source)
         stripped_file = self._strip_docstrings(source, tree.root_node)
-        with open('results/stripped_' + path.name , "wb") as f:
-            f.write(stripped_file)
         tree = self._parser.parse(stripped_file)
         self._collected_docs = []
-        self._document(tree.root_node, stripped_file)
+        self._document(tree.root_node, stripped_file, path)
         documented_file = self._insert_docs(stripped_file)
         self._save_file(documented_file, path)
 
     def _save_file(self, documented_file: bytes, path: Path):
-        if self.config['mode'] == 'clone':
+        if self._mode == 'clone':
             documented_path = self._results_path(path, "documented")
         else:
             documented_path = path
@@ -110,7 +93,7 @@ class Documenter:
 
             -> results/documented/pkg/file.py
         """
-        relative_path = path.relative_to(Path(self.config['root_dir']))
+        relative_path = path.relative_to(Path(self._root_dir).parent)
         output_path = Path("results") / prefix / relative_path
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,36 +118,13 @@ class Documenter:
                 collected_docstrings.extend(nodes)
         return collected_docstrings
 
-    def _document(self, node: Node, file: bytes) -> None:
+    def _document(self, node: Node, file: bytes, path: Path) -> None:
         """Recurse into named children first, then document the current node."""
         for child in node.named_children:  # skip anonymous tokens
-            self._document(child, file)
-        if node.type in self.DOCUMENTABLE_ELEMENTS:
-            self._generate_and_collect(node, file)
+            self._document(child, file, path)
+        if node.type in self._node_types:
+            self._generate_and_collect(node, file, path)
 
-    def _generate_and_collect(self, node: Node, file: bytes) -> None:
-        node_name = ''
-        if node.child_by_field_name('name'):
-            node_name = node.child_by_field_name('name').text.decode('utf-8')
-        insertion_point = self._find_insertion_point(node, self._insertion)
-        tabulation = self._find_indentation(insertion_point, self._insertion, file)
-        template = self._template_builder.build_template(node)
-        skeleton = self._skeleton_builder.build_skeleton(node)
-        with open('results/skeleton/' + self.path.name + "_" + node_name + '.skeleton.txt', "w") as f:
-            f.write(json.dumps(skeleton))
-        example = self._example_builder.build_example(node)
-        prompt = self._build_prompt(node, skeleton, example)
-        with open('results/prompts/' + self.path.name + "_" + node_name + '.docstring.txt', "w") as f:
-            f.write(prompt)
-        response = self._query_model(prompt)
-        docstring = template.render(json.loads(response)) + "\n"
-        with open('results/docs/' + self.path.name + "_" + node_name + '.docstring.txt', "w") as f:
-            f.write(docstring)
-        self._collected_docs.append((insertion_point, docstring, tabulation))
-
-        # ------------------------------------------------------------------
-        # Source insertion — done in reverse order to preserve byte offsets
-        # ------------------------------------------------------------------
 
     def _insert_docs(self, source: bytes) -> bytes:
         """
@@ -203,16 +163,43 @@ class Documenter:
 
         return source
 
+    def _generate_and_collect(self, node: Node, file: bytes, path: Path) -> None:
+        self.element_count += 1
+        node_name = ''
+        if node.child_by_field_name('name'):
+            node_name = node.child_by_field_name('name').text.decode('utf-8')
+
+        template = Template(Builder.build(self._template_dir, self._node_types , node))
+        example = Builder.build(self._example_dir, self._node_types , node)
+
+        insertion_point = self._find_insertion_point(node, self._insertion)
+        tabulation = self._find_indentation(insertion_point, file)
+        skeleton = self._skeletoniser.build_skeleton(node)
+        prompt = self._build_prompt(node, skeleton, example)
+
+        time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"{time}\t {self.file}.{self.element_count}: {node_name}. Prompt: {len(prompt)}")
+        ini = datetime.datetime.now()
+
+        response = self._query_model(prompt)
+
+        time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"{time}\t {self.file}.{self.element_count}: {node_name}. Query time: {(datetime.datetime.now() - ini).total_seconds()}")
+
+        docstring = template.render(json.loads(response)) + "\n"
+        self.insert_to_results(docstring, path, node_name)
+        self._collected_docs.append((insertion_point, docstring, tabulation))
+
     def _query_model(self, prompt: str) -> str:
         resp = requests.post(
-            self.config['llm']['base_url'].rstrip("/") + "/api/generate",
+            self._url.rstrip("/") + "/api/generate",
             json={
-                "model": self.config['llm']['model'],
+                "model": self._model,
                 "prompt": prompt,
                 "think": False,
                 "stream": False,
                 "format": "json",
-                "options": {"temperature": self.config['llm']['temperature']}},
+                "options": {"temperature": self._temperature}},
             timeout=600,
         )
         resp.raise_for_status()
@@ -221,7 +208,7 @@ class Documenter:
     def _build_prompt(self, node: Node, skeleton: dict, example: str) -> str:
         return (
             f"You are an expert software engineer writing API documentation (docstrings) "
-            f"for {self.config['language']} code.\n\n"
+            f"for {self._language_name} code.\n\n"
             f"Your task is to complete the provided dictionary skeleton by replacing each "
             f"'<placeholder>' with an accurate, concise description based solely on the "
             f"code snippet provided.\n\n"
@@ -237,7 +224,7 @@ class Documenter:
             f"4. Output ONLY the completed dictionary as valid JSON. No prose, no fences.\n"
             f"# Examples:\n{example}\n\n"
             f"# Code to document:\n"
-            f"```{self.config['language']}\n{node.text.decode("utf-8")}\n```\n\n"
+            f"```{self._language}\n{node.text.decode("utf-8")}\n```\n\n"
             f"# Dictionary skeleton to complete:\n"
             f"{skeleton}"
         )
@@ -277,7 +264,7 @@ class Documenter:
 
         raise ValueError(f"Unknown placement: {placement!r}")
 
-    def _find_indentation(self, start_byte: int, placement: str, source: bytes) -> str:
+    def _find_indentation(self, start_byte: int, source: bytes) -> str:
         """Return the indentation (run of spaces/tabs) of the line the
         insertion point lives on.
 
@@ -286,19 +273,32 @@ class Documenter:
         For 'inside', start_byte sits at the start of the body line and the
         indentation follows it ("...def f():\\n|\\t\\t\\tstmt").
         """
-        SPACE, TAB = 0x20, 0x09
+        space, tab = 0x20, 0x09
 
         i = start_byte - 1
         indent = bytearray()
-        while i >= 0 and source[i] in (SPACE, TAB):
+        while i >= 0 and source[i] in (space, tab):
             indent.append(source[i])
             i -= 1
         indent.reverse()
         return bytes(indent).decode('utf-8')
 
-    def _indent_docstring(self, docstring: str, indentation: str, placement: str) -> str:
+    def _indent_docstring(self, docstring: str, indentation: str) -> str:
         """Apply `indentation` to a freshly rendered (un-indented) docstring
         according to the insertion strategy."""
         body = docstring[:-1] if docstring.endswith('\n') else docstring
         tail = '\n' if docstring.endswith('\n') else ''
         return indentation + body.replace('\n', '\n' + indentation) + tail
+
+    def insert_to_results(self, docstring: str, path: Path, node: str):
+        file = self._language_name + "_docstrings.json"
+        with open(file, "a") as f:
+            file = self._language_name + "_docstrings.json"
+
+            entry_obj = {
+                "path": f"{path.absolute()}.{node}",
+                "docstring": docstring
+            }
+
+            with open(file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry_obj, ensure_ascii=False) + ",\n")

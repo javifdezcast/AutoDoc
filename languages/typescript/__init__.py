@@ -1,0 +1,1 @@
+from languages.typescript.typescript import TypeScriptSkeletoniser

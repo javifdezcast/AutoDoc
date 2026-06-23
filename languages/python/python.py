@@ -19,9 +19,9 @@ Template objects.
 """
 from typing import override
 from tree_sitter import Node
-from builders.skeleton_builder import SkeletonBuilder
+from builders import Skeletoniser
 
-class PythonSkeletonBuilder (SkeletonBuilder):
+class PythonSkeletoniser (Skeletoniser):
 
 
     # ------------------------------------------------------------------ #
@@ -29,6 +29,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
     # ------------------------------------------------------------------ #
 
     @override
+    @classmethod
     def build_skeleton(cls, node: Node) -> dict | None:
         """
         Dispatch to the right skeleton builder based on the node type.
@@ -57,7 +58,8 @@ class PythonSkeletonBuilder (SkeletonBuilder):
     #  Skeleton builders                                                   #
     # ------------------------------------------------------------------ #
 
-    def _build_module_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_module_skeleton(cls, node: Node) -> dict:
             """
             Build the documentation skeleton for a module node.
 
@@ -88,11 +90,12 @@ class PythonSkeletonBuilder (SkeletonBuilder):
             ]
 
             if variable_nodes:
-                self._add_attribute_elements(variable_nodes, skeleton)
+                cls._add_attribute_elements(variable_nodes, skeleton)
 
             return skeleton
 
-    def _build_class_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_class_skeleton(cls, node: Node) -> dict:
             """
             Build the documentation skeleton for a class node.
 
@@ -127,11 +130,12 @@ class PythonSkeletonBuilder (SkeletonBuilder):
                             field_nodes.append(assignment)
 
                 if field_nodes:
-                    self._add_attribute_elements(field_nodes, skeleton, key="attributes")
+                    cls._add_attribute_elements(field_nodes, skeleton, key="attributes")
 
             return skeleton
 
-    def _build_function_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_function_skeleton(cls, node: Node) -> dict:
             """
             Build the skeleton for a single function node.
 
@@ -160,7 +164,7 @@ class PythonSkeletonBuilder (SkeletonBuilder):
             }
 
             # ── parameters ───────────────────────────────────────────────────
-            params = self._extract_parameters(params_node, "function")
+            params = cls._extract_parameters(params_node, "function")
             if params:
                 skeleton["args"] = params
 
@@ -177,7 +181,8 @@ class PythonSkeletonBuilder (SkeletonBuilder):
         #  Private helpers                                                     #
         # ------------------------------------------------------------------ #
 
-    def _extract_parameters(self, params_node: Node | None, kind: str) -> list[dict]:
+    @classmethod
+    def _extract_parameters(cls, params_node: Node | None, kind: str) -> list[dict]:
             """
             Extract parameters from a 'parameters' node.
 
@@ -256,8 +261,9 @@ class PythonSkeletonBuilder (SkeletonBuilder):
 
             return params
 
+    @classmethod
     def _add_attribute_elements(
-            self,
+            cls,
             nodes: list[Node],
             skeleton: dict,
             key: str = "variables",

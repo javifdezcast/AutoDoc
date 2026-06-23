@@ -1,7 +1,7 @@
 from tree_sitter import Node
 
 
-class SkeletonBuilder():
+class Skeletoniser():
 
     @classmethod
     def build_skeleton(cls, node: Node) -> dict:

@@ -14,22 +14,23 @@ Functional / module-level code has the following structure:
 
 This module builds the skeletons for each element that we want to document.
 The TSDoc format intentionally omits type information from @param/@returns
-because TypeScript already encodes types in the source code itself, so we
+because TypeScript already encodes types in the source code itcls, so we
 only collect names and descriptions for parameters (unlike the Python builder
 which carries a 'type' field).
 """
 from typing import override
 from tree_sitter import Node
-from builders.skeleton_builder import SkeletonBuilder
+from builders import Skeletoniser
 
 
-class TypeScriptSkeletonBuilder(SkeletonBuilder):
+class TypeScriptSkeletoniser(Skeletoniser):
 
     # ------------------------------------------------------------------ #
     #  Public dispatcher                                                 #
     # ------------------------------------------------------------------ #
 
     @override
+    @classmethod
     def build_skeleton(cls, node: Node) -> dict | None:
         """
         Dispatch to the right skeleton builder based on the node type.
@@ -61,7 +62,8 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
     #  Skeleton builders                                                 #
     # ------------------------------------------------------------------ #
 
-    def _build_module_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_module_skeleton(cls, node: Node) -> dict:
         """
         Build the documentation skeleton for a TypeScript file (program node).
 
@@ -102,11 +104,12 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
                         variable_nodes.append(declarator)
 
         if variable_nodes:
-            self._add_attribute_elements(variable_nodes, skeleton)
+            cls._add_attribute_elements(variable_nodes, skeleton)
 
         return skeleton
 
-    def _build_class_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_class_skeleton(cls, node: Node) -> dict:
         """
         Build the documentation skeleton for a TypeScript class.
 
@@ -138,15 +141,16 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
                 # for every field; visibility modifiers (`private`,
                 # `protected`) appear as anonymous children.
                 if item.type == "public_field_definition":
-                    if self._is_public_member(item):
+                    if cls._is_public_member(item):
                         field_nodes.append(item)
 
             if field_nodes:
-                self._add_attribute_elements(field_nodes, skeleton, key="attributes")
+                cls._add_attribute_elements(field_nodes, skeleton, key="attributes")
 
         return skeleton
 
-    def _build_interface_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_interface_skeleton(cls, node: Node) -> dict:
         """
         Build the documentation skeleton for a TypeScript interface.
 
@@ -172,11 +176,12 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
                 if item.type == "property_signature"
             ]
             if field_nodes:
-                self._add_attribute_elements(field_nodes, skeleton, key="attributes")
+                cls._add_attribute_elements(field_nodes, skeleton, key="attributes")
 
         return skeleton
 
-    def _build_function_skeleton(self, node: Node) -> dict:
+    @classmethod
+    def _build_function_skeleton(cls, node: Node) -> dict:
         """
         Build the skeleton for a single function or method node.
 
@@ -208,7 +213,7 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
         }
 
         # ── parameters ───────────────────────────────────────────────────
-        params = self._extract_parameters(params_node)
+        params = cls._extract_parameters(params_node)
         if params:
             skeleton["args"] = params
 
@@ -227,7 +232,8 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
     #  Private helpers                                                   #
     # ------------------------------------------------------------------ #
 
-    def _extract_parameters(self, params_node: Node | None) -> list[dict]:
+    @classmethod
+    def _extract_parameters(cls, params_node: Node | None) -> list[dict]:
         """
         Extract parameters from a 'formal_parameters' node.
 
@@ -275,8 +281,9 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
 
         return params
 
+    @classmethod
     def _add_attribute_elements(
-        self,
+        cls,
         nodes: list[Node],
         skeleton: dict,
         key: str = "variables",
@@ -289,7 +296,7 @@ class TypeScriptSkeletonBuilder(SkeletonBuilder):
             - public_field_definition     (class fields)
             - property_signature          (interface properties)
 
-        TypeScript already carries the type on the declaration itself; we
+        TypeScript already carries the type on the declaration itcls; we
         keep a 'type' key in the skeleton because — unlike for @param —
         types ARE useful when describing standalone module variables and
         class/interface members (rendered as plain Markdown, not as a

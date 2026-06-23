@@ -14,31 +14,79 @@
     "image": "ollama/ollama:latest"
   },
   "language": "python",
-  "root_dir": "/home/javi/Projects/python/fastapi-realworld-example-app",
+  "root_dir": "/home/javi/Projects/scc-my-time",
   "scope": "all",
   "mode": "clone",
-  "languages": {
-    "python": {
-      "extensions": [
-        ".py"
-      ],
-      "elements_to_document": [
-        "class_definition",
-        "module",
-        "function_definition"
-      ]
-    },
-    "typescript": {
-      "extensions": [
-        ".ts"
-      ],
-      "elements_to_document": [
-        "program",
-        "function_declaration",
-        "method_definition",
-        "class_declaration",
-        "interface_declaration"
-      ]
-    }
+  "ignore": [
+    "/venv/",
+    "/.venv/",
+    "/env/",
+    "/.env",
+    "/virtualenv/",
+    "/site-packages/",
+    "/.git/",
+    "/.hg/",
+    "/.svn/",
+    "/__pycache__/",
+    "/.pytest_cache/",
+    "/.mypy_cache/",
+    "/.ruff_cache/",
+    "/.pytype/",
+    "/.pyre/",
+    "/.tox/",
+    "/.nox/",
+    "/build/",
+    "/dist/",
+    "/.eggs/",
+    ".egg-info",
+    "/.idea/",
+    "/.vscode/",
+    "/htmlcov/",
+    "/.coverage",
+    "/.ipynb_checkpoints/",
+    "/_build/",
+    "/.DS_Store",
+    "/.cache/"
+  ],
+  "elements_to_document": [
+    "class_definition",
+    "module",
+    "function_definition"
+  ],
+  "python": {
+    "elements_to_document": [
+      "program",
+      "function_declaration",
+      "method_definition",
+      "class_declaration",
+      "interface_declaration"
+    ],
+    "ignore": [
+      "/node_modules/",
+      "/.git/",
+      "/.hg/",
+      "/.svn/",
+      "/dist/",
+      "/tmp/",
+      "/out-tsc/",
+      "/bazel-out/",
+      "/.angular/",
+      "/coverage/",
+      "/e2e/",
+      "/.nyc_output/",
+      "/.idea/",
+      "/.vscode/",
+      "/.cache/",
+      "/.sass-cache/",
+      "/connect.lock/",
+      "/libpeerconnection.log/",
+      "/.DS_Store",
+      "/Thumbs.db",
+      ".min.js",
+      ".min.css",
+      "/.husky/",
+      "/.github/",
+      "api"
+    ]
   }
 }

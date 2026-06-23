@@ -3,26 +3,31 @@ from typing import Iterable
 from git import Repo
 from languages import languages
 
-
 class FileFinder:
+    
+    root_dir: str
+    extensions: Iterable[str]
+    scope: str
+    ignore: Iterable[str]
 
-    def __init__(self):
-        pass
+    def __init__(self, config: dict):
+        self.root_dir = config['root_dir']
+        self.scope = config['scope']
+        self.ignore = config['ignore']
+        self.extensions = languages[config['language']].extensions
 
-    @classmethod
-    def find_different_files(cls,config: dict) -> list[str]:
-        root = config['root_dir']
-        langauge_files = cls.find_matching_files(root, languages[config['language']]['extensions'])
+    
+    def find_different_files(self) -> list[str]:
+        langauge_files = self._find_matching_files(self.root_dir, self.extensions)
         files_to_document = langauge_files
-        if (config['scope'] == 'diff'):
-            different_files = cls.find_changed_files(root)
+        if (self.scope == 'diff'):
+            different_files = self._find_changed_files(self.root_dir)
             files_to_document = list(set(langauge_files) & set(different_files))
+        files_to_document = self._remove_ignored_files(files_to_document)
         return files_to_document
 
-
-
-    @classmethod
-    def find_matching_files(self, root: str, extensions: Iterable[str]) -> list[str]:
+    
+    def _find_matching_files(self, root: str, extensions: Iterable[str]) -> list[str]:
         normalized = tuple(
             (ext if ext.startswith('.') else f'.{ext}').lower()
             for ext in extensions
@@ -35,8 +40,8 @@ class FileFinder:
                     matches.append(os.path.join(current_dir, filename))
         return matches
 
-    @classmethod
-    def find_changed_files(cls, root: str) -> list[str]:
+    
+    def _find_changed_files(self, root: str) -> list[str]:
         repo = Repo(root)
         head_commit = repo.head.commit
         if not head_commit.parents:
@@ -56,3 +61,13 @@ class FileFinder:
                 if diff.b_path:
                     changed.add(diff.b_path)
         return [os.path.join(root, p) for p in sorted(changed)]
+
+    
+    def _remove_ignored_files(self, files_to_document: list[str]) -> list[str]:
+        return [file for file in files_to_document if not self._is_ignored(file)]
+
+    def _is_ignored(self, file)-> bool:
+        normalized = file.replace("\\", "/")
+        if 'venv' in file and not any(ignored in normalized for ignored in self.ignore):
+            print('hola')
+        return any(ignored in normalized for ignored in self.ignore)
